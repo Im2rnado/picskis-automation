@@ -21,13 +21,15 @@ function validateConfig() {
 const config = {
     port: process.env.PORT || 3000,
     webhookPath: process.env.WEBHOOK_PATH || '/webhook',
+    baseUrl: process.env.BASE_URL || 'http://localhost:3000',
     whatsapp: {
         accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
         phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
         recipientNumber: process.env.WHATSAPP_RECIPIENT_NUMBER
     },
     nodeEnv: process.env.NODE_ENV || 'development',
-    tempDir: './temp'
+    tempDir: './temp',
+    fileExpiryDays: 10
 };
 
 // Validate on module load

@@ -1,6 +1,7 @@
 const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
+const path = require('path');
 const logger = require('../utils/logger');
 const config = require('../utils/config');
 
@@ -43,28 +44,26 @@ async function uploadMedia(filePath) {
 }
 
 /**
- * Sends a PDF document via WhatsApp Business API
- * @param {string} pdfPath - Path to the PDF file to send
+ * Sends a download link via WhatsApp Business API
+ * @param {string} pdfPath - Path to the PDF file (used to get filename)
  * @param {string} orderId - Order ID for logging and caption
  * @returns {Promise<Object>} Response from WhatsApp API
  */
 async function sendPDF(pdfPath, orderId) {
     try {
-        logger.info(`Sending PDF to WhatsApp for order: ${orderId}`);
+        logger.info(`Sending PDF download link to WhatsApp for order: ${orderId}`);
 
-        // Step 1: Upload media
-        const mediaId = await uploadMedia(pdfPath);
+        const filename = path.basename(pdfPath);
+        const downloadUrl = `${config.baseUrl}/download/${encodeURIComponent(filename)}`;
 
-        // Step 2: Send message with media
+        // Send text message with download link
         const messagePayload = {
             messaging_product: 'whatsapp',
             recipient_type: 'individual',
             to: config.whatsapp.recipientNumber,
-            type: 'document',
-            document: {
-                id: mediaId,
-                caption: `Order ${orderId}`,
-                filename: `${orderId}.pdf`
+            type: 'text',
+            text: {
+                body: `Order ${orderId}\n\nDownload PDF:\n${downloadUrl}`
             }
         };
 
@@ -79,10 +78,10 @@ async function sendPDF(pdfPath, orderId) {
             }
         );
 
-        logger.info(`PDF sent successfully to WhatsApp for order ${orderId}`);
+        logger.info(`Download link sent successfully to WhatsApp for order ${orderId}`);
         return response.data;
     } catch (error) {
-        logger.error(`Failed to send PDF to WhatsApp for order ${orderId}:`, error.response?.data || error.message);
+        logger.error(`Failed to send download link to WhatsApp for order ${orderId}:`, error.response?.data || error.message);
         throw new Error(`WhatsApp send failed: ${error.response?.data?.error?.message || error.message}`);
     }
 }

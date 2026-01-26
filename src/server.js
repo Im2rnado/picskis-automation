@@ -2,7 +2,9 @@ const express = require('express');
 const logger = require('./utils/logger');
 const config = require('./utils/config');
 const webhookRouter = require('./routes/webhook');
+const downloadRouter = require('./routes/download');
 const errorHandler = require('./middleware/errorHandler');
+const { startFileCleanup } = require('./utils/fileCleanup');
 
 const app = express();
 
@@ -24,6 +26,9 @@ app.get('/health', (req, res) => {
 // Webhook route
 app.use(config.webhookPath, webhookRouter);
 
+// Download route
+app.use('/download', downloadRouter);
+
 // Error handling middleware (must be last)
 app.use(errorHandler);
 
@@ -31,7 +36,11 @@ app.use(errorHandler);
 const server = app.listen(config.port, () => {
     logger.info(`Server started on port ${config.port}`);
     logger.info(`Webhook endpoint: ${config.webhookPath}`);
+    logger.info(`Download endpoint: /download/:filename`);
     logger.info(`Environment: ${config.nodeEnv}`);
+    
+    // Start file cleanup scheduler (runs every 24 hours)
+    startFileCleanup();
 });
 
 // Graceful shutdown

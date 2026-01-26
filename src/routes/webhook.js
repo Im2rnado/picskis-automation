@@ -73,11 +73,9 @@ router.post('/', async (req, res) => {
                     orderIdWithSuffix = `${orderIdWithSuffix} MAGAZINE`;
                 }
 
-                // Send PDF via WhatsApp
+                // Send PDF download link via WhatsApp
+                // File will be kept for 10 days and auto-deleted by cleanup scheduler
                 await whatsappService.sendPDF(pdfPath, orderIdWithSuffix);
-
-                // Cleanup temporary PDF file
-                await pdfService.deletePDF(pdfPath);
 
                 results.push({
                     projectId: project.id,
