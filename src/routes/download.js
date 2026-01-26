@@ -39,9 +39,9 @@ router.get('/:filename', async (req, res) => {
             return res.status(410).json({ error: 'File has expired' });
         }
 
-        // Set headers for PDF download
+        // Set headers for PDF viewing (inline instead of attachment)
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
         res.setHeader('Cache-Control', 'no-cache');
 
         // Stream file
