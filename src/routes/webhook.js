@@ -18,7 +18,7 @@ router.post('/', async (req, res) => {
         let orderNumber = order;
         if (typeof order === 'object') {
             // Try reference first (as per your example), then number
-            orderNumber = order.reference || order.number || order;
+            orderNumber = projects[0].order.reference;
         }
 
         // Validate webhook payload
