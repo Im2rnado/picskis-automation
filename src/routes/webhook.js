@@ -15,11 +15,7 @@ router.post('/', async (req, res) => {
         const { order, projects } = req.body;
 
         // Extract order number - can be string or from order.number or order.reference
-        let orderNumber = order;
-        if (typeof order === 'object') {
-            // Try reference first (as per your example), then number
-            orderNumber = projects[0].order.reference;
-        }
+        let orderNumber = projects[0].order.reference;
 
         // Validate webhook payload
         if (!orderNumber) {
