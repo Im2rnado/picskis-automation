@@ -223,17 +223,21 @@ async function mergePDFs(coverBuffer, pagesBuffer) {
  * @param {Buffer} buffer - PDF buffer to save
  * @param {string} orderId - Order ID to use as filename
  * @param {number} projectIndex - Optional project index for multiple projects (1-based)
+ * @param {boolean} isMagazine - Whether to add MAGAZINE suffix
  * @returns {Promise<string>} Path to saved PDF file
  */
-async function savePDF(buffer, orderId, projectIndex = null) {
+async function savePDF(buffer, orderId, projectIndex = null, isMagazine = false) {
     try {
         // Ensure temp directory exists
         const tempDir = config.tempDir;
         await fs.mkdir(tempDir, { recursive: true });
 
         // Add suffix for multiple projects: -1, -2, etc.
-        const suffix = (projectIndex !== null && projectIndex !== 1) ? `-${projectIndex}` : '';
-        const filename = `${orderId}${suffix}.pdf`;
+        // Always add index suffix if projectIndex is provided (even for first project)
+        const indexSuffix = projectIndex !== null ? `-${projectIndex}` : '';
+        // Add MAGAZINE suffix if applicable
+        const magazineSuffix = isMagazine ? ' MAGAZINE' : '';
+        const filename = `${orderId}${indexSuffix}${magazineSuffix}.pdf`;
         const filePath = path.join(tempDir, filename);
 
         await fs.writeFile(filePath, buffer);
@@ -265,9 +269,10 @@ async function deletePDF(filePath) {
  * @param {Object} project - Project object from Printbox webhook
  * @param {string} orderId - Order ID
  * @param {number} projectIndex - Optional project index for multiple projects (1-based)
+ * @param {boolean} isMagazine - Whether to add MAGAZINE suffix to filename
  * @returns {Promise<string>} Path to the merged PDF file
  */
-async function processProjectPDFs(project, orderId, projectIndex = null) {
+async function processProjectPDFs(project, orderId, projectIndex = null, isMagazine = false) {
     const renderUrl = project.render?.url || null;
     const files = project.render?.files || [];
 
@@ -312,8 +317,8 @@ async function processProjectPDFs(project, orderId, projectIndex = null) {
         // Step 5: Merge PDFs
         const mergedBuffer = await mergePDFs(coverBuffer, pagesBuffer);
 
-        // Step 6: Save merged PDF with project index suffix
-        const filePath = await savePDF(mergedBuffer, orderId, projectIndex);
+        // Step 6: Save merged PDF with project index suffix and MAGAZINE suffix if applicable
+        const filePath = await savePDF(mergedBuffer, orderId, projectIndex, isMagazine);
 
         return filePath;
     } catch (error) {

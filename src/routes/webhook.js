@@ -12,13 +12,13 @@ router.post('/', async (req, res) => {
     try {
         logger.info('Received webhook request');
 
-        const { projects } = req.body;
-        const { order } = projects[0];
+        const { order, projects } = req.body;
 
-        // Extract order number - can be string or from order.number
+        // Extract order number - can be string or from order.number or order.reference
         let orderNumber = order;
-        if (typeof order === 'object' && order?.reference) {
-            orderNumber = order.reference;
+        if (typeof order === 'object') {
+            // Try reference first (as per your example), then number
+            orderNumber = order.reference || order.number || order;
         }
 
         // Validate webhook payload
@@ -52,11 +52,26 @@ router.post('/', async (req, res) => {
                     continue;
                 }
 
+                // Check if this project has family_id 296 (MAGAZINE)
+                let isMagazine = false;
+                if (project.order && Array.isArray(project.order.projects)) {
+                    // Find matching project in order.projects array by project ID
+                    const orderProject = project.order.projects.find(p => p.id === project.id);
+                    if (orderProject && orderProject.family_id === 296) {
+                        isMagazine = true;
+                        logger.info(`Project ${project.id} identified as MAGAZINE (family_id: 296)`);
+                    }
+                }
+
                 // Process PDFs: download, merge, save (with project index for filename suffix)
-                const pdfPath = await pdfService.processProjectPDFs(project, orderNumber, projectIndex);
+                const pdfPath = await pdfService.processProjectPDFs(project, orderNumber, projectIndex, isMagazine);
 
                 // Construct order ID with suffix for WhatsApp message
-                const orderIdWithSuffix = projects.length > 1 ? `${orderNumber}-${projectIndex}` : orderNumber;
+                // Always add index suffix for multiple projects (including -1 for first)
+                let orderIdWithSuffix = projects.length > 1 ? `${orderNumber}-${projectIndex}` : orderNumber;
+                if (isMagazine) {
+                    orderIdWithSuffix = `${orderIdWithSuffix} MAGAZINE`;
+                }
 
                 // Send PDF via WhatsApp
                 await whatsappService.sendPDF(pdfPath, orderIdWithSuffix);
@@ -68,10 +83,11 @@ router.post('/', async (req, res) => {
                     projectId: project.id,
                     orderId: orderNumber,
                     projectIndex: projectIndex,
+                    isMagazine: isMagazine,
                     status: 'success'
                 });
 
-                logger.info(`Successfully processed project ${project.id} (${projectIndex}/${projects.length}) for order ${orderNumber}`);
+                logger.info(`Successfully processed project ${project.id} (${projectIndex}/${projects.length}) for order ${orderNumber}${isMagazine ? ' [MAGAZINE]' : ''}`);
             } catch (error) {
                 logger.error(`Error processing project ${project.id}:`, error.message);
                 errors.push({
