@@ -60,7 +60,12 @@ router.post('/', async (req, res) => {
                 }
 
                 // Process PDFs: download, merge, save (with project index for filename suffix)
-                const pdfPath = await pdfService.processProjectPDFs(project, orderNumber, projectIndex, isMagazine);
+                const { pdfPath, pageCount } = await pdfService.processProjectPDFs(
+                    project,
+                    orderNumber,
+                    projectIndex,
+                    isMagazine
+                );
 
                 // Construct order ID with suffix for WhatsApp message
                 // Always add index suffix for multiple projects (including -1 for first)
@@ -69,9 +74,18 @@ router.post('/', async (req, res) => {
                     orderIdWithSuffix = `${orderIdWithSuffix} MAGAZINE`;
                 }
 
+                // Order value calculation (based on pages PDF only, cover excluded)
+                const safePageCount = typeof pageCount === 'number' ? pageCount : 0;
+                const orderValue = isMagazine
+                    ? 20 + (safePageCount * 10)
+                    : 350 + (safePageCount * 6);
+
                 // Send PDF download link via WhatsApp
                 // File will be kept for 10 days and auto-deleted by cleanup scheduler
-                await whatsappService.sendPDF(pdfPath, orderIdWithSuffix);
+                await whatsappService.sendPDF(pdfPath, orderIdWithSuffix, {
+                    pageCount,
+                    orderValue
+                });
 
                 results.push({
                     projectId: project.id,

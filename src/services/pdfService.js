@@ -219,6 +219,22 @@ async function mergePDFs(coverBuffer, pagesBuffer) {
 }
 
 /**
+ * Returns the page count for a PDF buffer
+ * @param {Buffer} pdfBuffer
+ * @returns {Promise<number|null>}
+ */
+async function getPdfPageCount(pdfBuffer) {
+    if (!pdfBuffer) return null;
+    try {
+        const doc = await PDFDocument.load(pdfBuffer);
+        return doc.getPageCount();
+    } catch (error) {
+        logger.warn(`Failed to read PDF page count: ${error.message}`);
+        return null;
+    }
+}
+
+/**
  * Saves a PDF buffer to disk
  * @param {Buffer} buffer - PDF buffer to save
  * @param {string} orderId - Order ID to use as filename
@@ -270,7 +286,7 @@ async function deletePDF(filePath) {
  * @param {string} orderId - Order ID
  * @param {number} projectIndex - Optional project index for multiple projects (1-based)
  * @param {boolean} isMagazine - Whether to add MAGAZINE suffix to filename
- * @returns {Promise<string>} Path to the merged PDF file
+ * @returns {Promise<{pdfPath: string, pageCount: number|null}>} Path to merged PDF + page count from pages PDF only
  */
 async function processProjectPDFs(project, orderId, projectIndex = null, isMagazine = false) {
     const renderUrl = project.render?.url || null;
@@ -288,6 +304,7 @@ async function processProjectPDFs(project, orderId, projectIndex = null, isMagaz
     const extractDir = path.join(config.tempDir, `extract_${project.id}_${Date.now()}`);
     let coverBuffer = null;
     let pagesBuffer = null;
+    let pageCount = null;
 
     try {
         // Step 1: Download tar file
@@ -308,6 +325,10 @@ async function processProjectPDFs(project, orderId, projectIndex = null, isMagaz
         if (pagesPath) {
             pagesBuffer = await fs.readFile(pagesPath);
             logger.info(`Read pages PDF, size: ${pagesBuffer.length} bytes`);
+            pageCount = await getPdfPageCount(pagesBuffer);
+            if (pageCount !== null) {
+                logger.info(`Pages PDF page count: ${pageCount}`);
+            }
         }
 
         if (!coverBuffer && !pagesBuffer) {
@@ -320,7 +341,7 @@ async function processProjectPDFs(project, orderId, projectIndex = null, isMagaz
         // Step 6: Save merged PDF with project index suffix and MAGAZINE suffix if applicable
         const filePath = await savePDF(mergedBuffer, orderId, projectIndex, isMagazine);
 
-        return filePath;
+        return { pdfPath: filePath, pageCount };
     } catch (error) {
         logger.error(`Error processing PDFs for project ${project.id}:`, error.message);
         throw error;
@@ -335,6 +356,7 @@ module.exports = {
     extractTar,
     findPDFsInDirectory,
     mergePDFs,
+    getPdfPageCount,
     savePDF,
     deletePDF,
     deleteDirectory,
