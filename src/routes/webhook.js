@@ -76,9 +76,14 @@ router.post('/', async (req, res) => {
 
                 // Order value calculation (based on pages PDF only, cover excluded)
                 const safePageCount = typeof pageCount === 'number' ? pageCount : 0;
-                const orderValue = isMagazine
-                    ? 20 + (safePageCount * 10)
-                    : 350 + (safePageCount * 6);
+                let orderValue;
+                if (isMagazine) {
+                    orderValue = 20 + (safePageCount * 10);
+                } else if (safePageCount === 24) {
+                    orderValue = 450; // Normal book, 24 pages (excluding cover)
+                } else {
+                    orderValue = 350 + (safePageCount * 6);
+                }
 
                 // Send PDF download link via WhatsApp
                 // File will be kept for 10 days and auto-deleted by cleanup scheduler
