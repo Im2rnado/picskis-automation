@@ -48,7 +48,7 @@ const server = app.listen(config.port, () => {
     logger.info(`Cleanup endpoint: POST /cleanup`);
     logger.info(`Reset money endpoint: GET /reset-money`);
     logger.info(`Environment: ${config.nodeEnv}`);
-    
+
     // Start file cleanup scheduler (runs every 24 hours)
     startFileCleanup();
 });

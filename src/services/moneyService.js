@@ -28,6 +28,28 @@ async function appendOrderValue(orderId, orderValue) {
 
         await ensureMoneyDirExists();
         const moneyFilePath = getMoneyFilePath();
+
+        // 1. Check if the file exists and read its content
+        try {
+            const content = await fs.readFile(moneyFilePath, 'utf8');
+            const lines = content.split('\n');
+
+            // 2. Check if the orderId already exists in column 2
+            const idExists = lines.some(line => {
+                const parts = line.split(',');
+                return parts[1] === String(orderId);
+            });
+
+            if (idExists) {
+                logger.info(`OrderId ${orderId} already exists in CSV. Skipping append.`);
+                return; // Exit without adding
+            }
+        } catch (readError) {
+            // If file doesn't exist, we just proceed to create/append
+            if (readError.code !== 'ENOENT') throw readError;
+        }
+
+        // 3. If ID doesn't exist, append the new line
         const timestamp = new Date().toISOString();
         const line = `${timestamp},${orderId},${orderValue}\n`;
 

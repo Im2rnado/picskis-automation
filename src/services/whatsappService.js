@@ -75,7 +75,7 @@ async function sendPDF(pdfPath, orderId, details = {}) {
             to: config.whatsapp.recipientNumber,
             type: 'text',
             text: {
-                body: `Order ${orderId}\nPage Count: ${pageCountText}\nOrder Value: ${orderValueText} EGP - Total Money: ${totalText} EGP\n\nDownload PDF:\n${downloadUrl}`
+                body: `Order ${orderId}\nPage Count: ${pageCountText}\nOrder Value: ${orderValueText} EGP\nTotal Money: ${totalText} EGP\n\nDownload PDF:\n${downloadUrl}`
             }
         };
 
