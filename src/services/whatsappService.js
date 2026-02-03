@@ -47,7 +47,7 @@ async function uploadMedia(filePath) {
  * Sends a download link via WhatsApp Business API
  * @param {string} pdfPath - Path to the PDF file (used to get filename)
  * @param {string} orderId - Order ID for logging and caption
- * @param {{pageCount?: number|null, orderValue?: number|null}=} details - Extra order details to include in message
+ * @param {{pageCount?: number|null, orderValue?: number|null, total?: number|null}=} details - Extra order details to include in message
  * @returns {Promise<Object>} Response from WhatsApp API
  */
 async function sendPDF(pdfPath, orderId, details = {}) {
@@ -61,6 +61,12 @@ async function sendPDF(pdfPath, orderId, details = {}) {
             typeof details.pageCount === 'number' ? `${details.pageCount}` : 'N/A';
         const orderValueText =
             typeof details.orderValue === 'number' ? `${details.orderValue}` : 'N/A';
+        const totalText =
+            typeof details.total === 'number'
+                ? `${details.total}`
+                : orderValueText !== 'N/A'
+                    ? orderValueText
+                    : 'N/A';
 
         // Send text message with download link
         const messagePayload = {
@@ -69,7 +75,7 @@ async function sendPDF(pdfPath, orderId, details = {}) {
             to: config.whatsapp.recipientNumber,
             type: 'text',
             text: {
-                body: `Order ${orderId}\nPage Count: ${pageCountText}\nOrder Value: ${orderValueText}\n\nDownload PDF:\n${downloadUrl}`
+                body: `Order ${orderId}\nPage Count: ${pageCountText}\nOrder Value: ${orderValueText} EGP - Total Money: ${totalText} EGP\n\nDownload PDF:\n${downloadUrl}`
             }
         };
 

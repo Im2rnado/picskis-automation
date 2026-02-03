@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 const logger = require('./logger');
 
 const requiredEnvVars = [
@@ -29,7 +30,8 @@ const config = {
     },
     nodeEnv: process.env.NODE_ENV || 'development',
     tempDir: './temp',
-    fileExpiryDays: 10
+    fileExpiryDays: 10,
+    moneyFilePath: process.env.MONEY_FILE_PATH || path.join(process.cwd(), 'data', 'money.csv')
 };
 
 // Validate on module load

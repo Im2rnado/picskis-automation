@@ -4,6 +4,7 @@ const config = require('./utils/config');
 const webhookRouter = require('./routes/webhook');
 const downloadRouter = require('./routes/download');
 const cleanupRouter = require('./routes/cleanup');
+const resetMoneyRouter = require('./routes/resetMoney');
 const errorHandler = require('./middleware/errorHandler');
 const { startFileCleanup } = require('./utils/fileCleanup');
 
@@ -33,6 +34,9 @@ app.use('/download', downloadRouter);
 // Cleanup route
 app.use('/cleanup', cleanupRouter);
 
+// Reset money route
+app.use('/reset-money', resetMoneyRouter);
+
 // Error handling middleware (must be last)
 app.use(errorHandler);
 
@@ -42,6 +46,7 @@ const server = app.listen(config.port, () => {
     logger.info(`Webhook endpoint: ${config.webhookPath}`);
     logger.info(`Download endpoint: /download/:filename`);
     logger.info(`Cleanup endpoint: POST /cleanup`);
+    logger.info(`Reset money endpoint: GET /reset-money`);
     logger.info(`Environment: ${config.nodeEnv}`);
     
     // Start file cleanup scheduler (runs every 24 hours)

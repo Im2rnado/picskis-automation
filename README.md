@@ -7,8 +7,9 @@ A Node.js Express server that automates the workflow from Printbox webhook to Wh
 - Receives webhooks from Printbox when orders are rendered
 - Downloads tar files from Printbox and extracts PDFs
 - Identifies and merges cover and pages PDFs into a single document
-- Sends merged PDFs via WhatsApp Business API
+- Sends merged PDFs via WhatsApp Business API with order metadata
 - Processes multiple projects per order with numbered suffixes (-1, -2, etc.)
+- Tracks per-order value and a running total in EGP
 - Comprehensive error handling and logging
 - Automatic cleanup of temporary files and extracted directories
 
@@ -186,6 +187,17 @@ Health check endpoint.
 }
 ```
 
+### GET /reset-money
+Resets the accumulated money total (used for WhatsApp reporting).
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Money total reset"
+}
+```
+
 ## How It Works
 
 1. **Webhook Reception**: Printbox sends POST request to `/webhook` endpoint with order and projects data
@@ -197,7 +209,21 @@ Health check endpoint.
 7. **PDF Merging**: Merges cover PDF first, then pages PDF into a single document
 8. **File Naming**: Saves merged PDF as `{orderId}.pdf` or `{orderId}-{index}.pdf` for multiple projects
 9. **WhatsApp Delivery**: Uploads PDF to WhatsApp Media API and sends as document with caption
-10. **Cleanup**: Deletes temporary PDF files and extracted directories
+10. **Money Tracking**: Appends order values to `data/money.csv` and maintains a running total
+11. **Cleanup**: Deletes temporary PDF files and extracted directories
+
+## Money Tracking
+
+- Each successfully processed project appends a line to `data/money.csv`:
+  - Format: `timestamp_iso,order_id,order_value`
+- The backend computes a **running total** of all order values and includes it in WhatsApp messages:
+  - `Order Value: <value> EGP - Total Money: <total> EGP`
+- Normal books:
+  - If pages (block only, excluding cover) = 24 → `Order Value = 450`
+  - Otherwise → `Order Value = 350 + (pages * 6)`
+- MAGAZINE:
+  - `Order Value = 20 + (pages * 10)`
+- The `/reset-money` endpoint truncates the CSV so the total restarts from the next order.
 
 ## Error Handling
 

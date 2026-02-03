@@ -3,6 +3,7 @@ const router = express.Router();
 const logger = require('../utils/logger');
 const pdfService = require('../services/pdfService');
 const whatsappService = require('../services/whatsappService');
+const moneyService = require('../services/moneyService');
 
 /**
  * POST /webhook
@@ -85,11 +86,16 @@ router.post('/', async (req, res) => {
                     orderValue = 350 + (safePageCount * 6);
                 }
 
+                // Append order value to CSV and get running total
+                await moneyService.appendOrderValue(orderIdWithSuffix, orderValue);
+                const total = await moneyService.getTotal();
+
                 // Send PDF download link via WhatsApp
                 // File will be kept for 10 days and auto-deleted by cleanup scheduler
                 await whatsappService.sendPDF(pdfPath, orderIdWithSuffix, {
                     pageCount,
-                    orderValue
+                    orderValue,
+                    total
                 });
 
                 results.push({
