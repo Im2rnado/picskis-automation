@@ -98,7 +98,88 @@ async function sendPDF(pdfPath, orderId, details = {}) {
     }
 }
 
+/**
+ * Builds the order details message body (Order, Page Count, Value, Total, Download link).
+ * @param {string} mainPdfPath - Path to the main merged PDF (for download URL)
+ * @param {string} orderId - Order ID for display
+ * @param {{pageCount?: number|null, orderValue?: number|null, total?: number|null}=} details
+ * @returns {string}
+ */
+function buildOrderMessageBody(mainPdfPath, orderId, details = {}) {
+    const filename = path.basename(mainPdfPath);
+    const downloadUrl = `${config.baseUrl}/download/${encodeURIComponent(filename)}`;
+    const pageCountText = typeof details.pageCount === 'number' ? `${details.pageCount}` : 'N/A';
+    const orderValueText = typeof details.orderValue === 'number' ? `${details.orderValue}` : 'N/A';
+    const totalText =
+        typeof details.total === 'number'
+            ? `${details.total}`
+            : orderValueText !== 'N/A'
+                ? orderValueText
+                : 'N/A';
+    return `Order ${orderId}\nPage Count: ${pageCountText}\nOrder Value: ${orderValueText} EGP\nTotal Money: ${totalText} EGP\n\nDownload PDF:\n${downloadUrl}`;
+}
+
+/**
+ * Sends the order message with the QR PDF as attachment (document + caption with order details and main PDF link).
+ * @param {string} qrPdfPath - Path to the QR PDF to send as document
+ * @param {string} mainPdfPath - Path to the main merged PDF (for download link in caption)
+ * @param {string} orderId - Order ID for caption
+ * @param {{pageCount?: number|null, orderValue?: number|null, total?: number|null}=} details
+ * @returns {Promise<Object>} Response from WhatsApp API
+ */
+async function sendOrderWithQRAttachment(qrPdfPath, mainPdfPath, orderId, details = {}) {
+    const caption = buildOrderMessageBody(mainPdfPath, orderId, details);
+    return sendPDFAsDocument(qrPdfPath, caption);
+}
+
+/**
+ * Uploads a PDF file and sends it as a document to the configured recipient.
+ * @param {string} pdfPath - Full path to the PDF file
+ * @param {string} [caption] - Optional caption for the document
+ * @returns {Promise<Object>} Response from WhatsApp API
+ */
+async function sendPDFAsDocument(pdfPath, caption) {
+    try {
+        const mediaId = await uploadMedia(pdfPath);
+        const filename = path.basename(pdfPath);
+
+        const messagePayload = {
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            to: config.whatsapp.recipientNumber,
+            type: 'document',
+            document: {
+                id: mediaId,
+                filename: filename
+            }
+        };
+        if (caption) {
+            messagePayload.document.caption = caption;
+        }
+
+        const response = await axios.post(
+            `${WHATSAPP_API_BASE_URL}/${config.whatsapp.phoneNumberId}/messages`,
+            messagePayload,
+            {
+                headers: {
+                    'Authorization': `Bearer ${config.whatsapp.accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        logger.info(`Document sent to WhatsApp: ${filename}`);
+        return response.data;
+    } catch (error) {
+        logger.error('Failed to send document to WhatsApp:', error.response?.data || error.message);
+        throw new Error(`WhatsApp document send failed: ${error.response?.data?.error?.message || error.message}`);
+    }
+}
+
 module.exports = {
     uploadMedia,
-    sendPDF
+    sendPDF,
+    sendPDFAsDocument,
+    buildOrderMessageBody,
+    sendOrderWithQRAttachment
 };

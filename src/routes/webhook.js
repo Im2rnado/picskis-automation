@@ -1,9 +1,11 @@
 const express = require('express');
+const fs = require('fs').promises;
 const router = express.Router();
 const logger = require('../utils/logger');
 const pdfService = require('../services/pdfService');
 const whatsappService = require('../services/whatsappService');
 const moneyService = require('../services/moneyService');
+const qrService = require('../services/qrService');
 
 /**
  * POST /webhook
@@ -16,6 +18,7 @@ router.post('/', async (req, res) => {
         const { order, projects } = req.body;
 
         // Extract order number - can be string or from order.number or order.reference
+        let orderId = order;
         let orderNumber = projects[0].order.reference;
 
         // Validate webhook payload
@@ -33,6 +36,15 @@ router.post('/', async (req, res) => {
 
         const results = [];
         const errors = [];
+        const shopifyOrderId = typeof orderId === 'object' && orderId != null
+            ? (orderId.number ?? orderId.reference ?? String(orderId))
+            : String(orderId);
+        let qrPdfPath = null;
+        try {
+            qrPdfPath = await qrService.generateQRPDF(shopifyOrderId, orderNumber);
+        } catch (qrErr) {
+            logger.warn(`QR PDF generation skipped for order ${orderNumber}:`, qrErr.message);
+        }
 
         // Process each project separately with index for numbering
         for (let i = 0; i < projects.length; i++) {
@@ -90,13 +102,23 @@ router.post('/', async (req, res) => {
                 await moneyService.appendOrderValue(orderIdWithSuffix, orderValue);
                 const total = await moneyService.getTotal();
 
-                // Send PDF download link via WhatsApp
-                // File will be kept for 10 days and auto-deleted by cleanup scheduler
-                await whatsappService.sendPDF(pdfPath, orderIdWithSuffix, {
-                    pageCount,
-                    orderValue,
-                    total
-                });
+                // Send order message: first project with QR PDF as attachment (same message as order details), rest as text only
+                if (i === 0 && qrPdfPath) {
+                    await whatsappService.sendOrderWithQRAttachment(qrPdfPath, pdfPath, orderIdWithSuffix, {
+                        pageCount,
+                        orderValue,
+                        total
+                    });
+                    await fs.unlink(qrPdfPath);
+                    qrPdfPath = null;
+                    logger.info(`QR PDF sent as attachment and deleted for order ${orderNumber}`);
+                } else {
+                    await whatsappService.sendPDF(pdfPath, orderIdWithSuffix, {
+                        pageCount,
+                        orderValue,
+                        total
+                    });
+                }
 
                 results.push({
                     projectId: project.id,
@@ -116,6 +138,13 @@ router.post('/', async (req, res) => {
                 });
                 // Continue processing other projects even if one fails
             }
+        }
+
+        // If QR was not sent with first project (e.g. first project failed), send or cleanup here
+        if (qrPdfPath) {
+            try {
+                await fs.unlink(qrPdfPath);
+            } catch (_) { /* ignore */ }
         }
 
         // Return response
