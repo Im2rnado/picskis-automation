@@ -8,17 +8,18 @@ const config = require('../utils/config');
 const WHATSAPP_API_BASE_URL = 'https://graph.facebook.com/v22.0';
 
 /**
- * Uploads a PDF file to WhatsApp Media API
- * @param {string} filePath - Path to the PDF file
+ * Uploads a media file to WhatsApp Media API
+ * @param {string} filePath - Path to the media file
+ * @param {string} mediaType - WhatsApp media type (document, image, etc.)
  * @returns {Promise<string>} Media ID returned by WhatsApp API
  */
-async function uploadMedia(filePath) {
+async function uploadMedia(filePath, mediaType = 'document') {
     try {
         logger.info(`Uploading media to WhatsApp: ${filePath}`);
 
         const formData = new FormData();
         formData.append('messaging_product', 'whatsapp');
-        formData.append('type', 'document');
+        formData.append('type', mediaType);
         formData.append('file', fs.createReadStream(filePath));
 
         const response = await axios.post(
@@ -120,16 +121,16 @@ function buildOrderMessageBody(mainPdfPath, orderId, details = {}) {
 }
 
 /**
- * Sends the order message with the QR PDF as attachment (document + caption with order details and main PDF link).
- * @param {string} qrPdfPath - Path to the QR PDF to send as document
+ * Sends the order message with the QR image as attachment (image + caption with order details and main PDF link).
+ * @param {string} qrImagePath - Path to the QR image to send
  * @param {string} mainPdfPath - Path to the main merged PDF (for download link in caption)
  * @param {string} orderId - Order ID for caption
  * @param {{pageCount?: number|null, orderValue?: number|null, total?: number|null}=} details
  * @returns {Promise<Object>} Response from WhatsApp API
  */
-async function sendOrderWithQRAttachment(qrPdfPath, mainPdfPath, orderId, details = {}) {
+async function sendOrderWithQRAttachment(qrImagePath, mainPdfPath, orderId, details = {}) {
     const caption = buildOrderMessageBody(mainPdfPath, orderId, details);
-    return sendPDFAsDocument(qrPdfPath, caption);
+    return sendImage(qrImagePath, caption);
 }
 
 /**
@@ -140,7 +141,7 @@ async function sendOrderWithQRAttachment(qrPdfPath, mainPdfPath, orderId, detail
  */
 async function sendPDFAsDocument(pdfPath, caption) {
     try {
-        const mediaId = await uploadMedia(pdfPath);
+        const mediaId = await uploadMedia(pdfPath, 'document');
         const filename = path.basename(pdfPath);
 
         const messagePayload = {
@@ -176,10 +177,53 @@ async function sendPDFAsDocument(pdfPath, caption) {
     }
 }
 
+/**
+ * Uploads an image file and sends it as an image message.
+ * @param {string} imagePath - Full path to image file
+ * @param {string} [caption] - Optional caption for the image
+ * @returns {Promise<Object>} Response from WhatsApp API
+ */
+async function sendImage(imagePath, caption) {
+    try {
+        const mediaId = await uploadMedia(imagePath, 'image');
+
+        const messagePayload = {
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            to: config.whatsapp.recipientNumber,
+            type: 'image',
+            image: {
+                id: mediaId
+            }
+        };
+        if (caption) {
+            messagePayload.image.caption = caption;
+        }
+
+        const response = await axios.post(
+            `${WHATSAPP_API_BASE_URL}/${config.whatsapp.phoneNumberId}/messages`,
+            messagePayload,
+            {
+                headers: {
+                    'Authorization': `Bearer ${config.whatsapp.accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        logger.info(`Image sent to WhatsApp: ${path.basename(imagePath)}`);
+        return response.data;
+    } catch (error) {
+        logger.error('Failed to send image to WhatsApp:', error.response?.data || error.message);
+        throw new Error(`WhatsApp image send failed: ${error.response?.data?.error?.message || error.message}`);
+    }
+}
+
 module.exports = {
     uploadMedia,
     sendPDF,
     sendPDFAsDocument,
+    sendImage,
     buildOrderMessageBody,
     sendOrderWithQRAttachment
 };
