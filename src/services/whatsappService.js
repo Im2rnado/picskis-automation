@@ -121,7 +121,7 @@ function buildOrderMessageBody(mainPdfPath, orderId, details = {}) {
 }
 
 /**
- * Sends the order message with the QR image as attachment (image + caption with order details and main PDF link).
+ * Sends the order message with the QR JPEG as document attachment (file + caption with order details and main PDF link).
  * @param {string} qrImagePath - Path to the QR image to send
  * @param {string} mainPdfPath - Path to the main merged PDF (for download link in caption)
  * @param {string} orderId - Order ID for caption
@@ -130,7 +130,7 @@ function buildOrderMessageBody(mainPdfPath, orderId, details = {}) {
  */
 async function sendOrderWithQRAttachment(qrImagePath, mainPdfPath, orderId, details = {}) {
     const caption = buildOrderMessageBody(mainPdfPath, orderId, details);
-    return sendImage(qrImagePath, caption);
+    return sendPDFAsDocument(qrImagePath, caption);
 }
 
 /**
