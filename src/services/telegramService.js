@@ -64,10 +64,10 @@ async function sendOrderWithQRAttachment(qrImagePath, mainPdfPath, orderId, deta
 
         const formData = new FormData();
         formData.append('chat_id', config.telegram.chatId);
-        formData.append('photo', fs.createReadStream(qrImagePath));
+        formData.append('document', fs.createReadStream(qrImagePath));
         formData.append('caption', caption);
 
-        const response = await axios.post(`${getTelegramBaseUrl()}/sendPhoto`, formData, {
+        const response = await axios.post(`${getTelegramBaseUrl()}/sendDocument`, formData, {
             headers: formData.getHeaders()
         });
 
