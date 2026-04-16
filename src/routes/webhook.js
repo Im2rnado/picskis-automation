@@ -2,8 +2,10 @@ const express = require('express');
 const fs = require('fs').promises;
 const router = express.Router();
 const logger = require('../utils/logger');
+const config = require('../utils/config');
 const pdfService = require('../services/pdfService');
 const whatsappService = require('../services/whatsappService');
+const telegramService = require('../services/telegramService');
 const moneyService = require('../services/moneyService');
 const qrService = require('../services/qrService');
 
@@ -43,7 +45,7 @@ router.post('/', async (req, res) => {
         try {
             qrImagePath = await qrService.generateQRImage(shopifyOrderId, orderNumber);
         } catch (qrErr) {
-            logger.warn(`QR image generation skipped for order ${orderNumber}:`, qrErr.message);
+            logger.warn(`QR image generation skipped for order ${orderNumber}: ${qrErr.message}`);
         }
 
         // Process each project separately with index for numbering
@@ -103,8 +105,10 @@ router.post('/', async (req, res) => {
                 const total = await moneyService.getTotal();
 
                 // Send order message: first project with QR image as attachment (same message as order details), rest as text only
+                const notifyService = config.telegram?.botToken ? telegramService : whatsappService;
+                
                 if (i === 0 && qrImagePath) {
-                    await whatsappService.sendOrderWithQRAttachment(qrImagePath, pdfPath, orderIdWithSuffix, {
+                    await notifyService.sendOrderWithQRAttachment(qrImagePath, pdfPath, orderIdWithSuffix, {
                         pageCount,
                         orderValue,
                         total
@@ -113,7 +117,7 @@ router.post('/', async (req, res) => {
                     qrImagePath = null;
                     logger.info(`QR image sent as attachment and deleted for order ${orderNumber}`);
                 } else {
-                    await whatsappService.sendPDF(pdfPath, orderIdWithSuffix, {
+                    await notifyService.sendPDF(pdfPath, orderIdWithSuffix, {
                         pageCount,
                         orderValue,
                         total
@@ -130,7 +134,7 @@ router.post('/', async (req, res) => {
 
                 logger.info(`Successfully processed project ${project.id} (${projectIndex}/${projects.length}) for order ${orderNumber}${isMagazine ? ' [MAGAZINE]' : ''}`);
             } catch (error) {
-                logger.error(`Error processing project ${project.id}:`, error.message);
+                logger.error(`Error processing project ${project.id}: ${error.message}`);
                 errors.push({
                     projectId: project.id,
                     projectIndex: projectIndex,

@@ -28,6 +28,10 @@ const config = {
         phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
         recipientNumber: process.env.WHATSAPP_RECIPIENT_NUMBER
     },
+    telegram: {
+        botToken: process.env.TELEGRAM_BOT_TOKEN,
+        chatId: process.env.TELEGRAM_CHAT_ID
+    },
     nodeEnv: process.env.NODE_ENV || 'development',
     tempDir: './temp',
     fileExpiryDays: 10,
