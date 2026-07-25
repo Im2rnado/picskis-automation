@@ -63,14 +63,39 @@ router.post('/', async (req, res) => {
                     continue;
                 }
 
-                // Check if this project has family_id 296 (MAGAZINE)
+                // Check if this project has family_id 296 (MAGAZINE) and extract quantity
                 let isMagazine = false;
+                let quantity = 1;
+
                 if (project.order && Array.isArray(project.order.projects)) {
                     // Find matching project in order.projects array by project ID
                     const orderProject = project.order.projects.find(p => p.id === project.id);
-                    if (orderProject && orderProject.family_id === 296) {
-                        isMagazine = true;
-                        logger.info(`Project ${project.id} identified as MAGAZINE (family_id: 296)`);
+                    if (orderProject) {
+                        if (orderProject.family_id === 296) {
+                            isMagazine = true;
+                            logger.info(`Project ${project.id} identified as MAGAZINE (family_id: 296)`);
+                        }
+                        if (orderProject.quantity) {
+                            const parsedQty = parseInt(orderProject.quantity, 10);
+                            if (!isNaN(parsedQty) && parsedQty > 0) {
+                                quantity = parsedQty;
+                            }
+                        }
+                    }
+                }
+
+                // Fallbacks for quantity if not set in orderProject
+                if (quantity === 1) {
+                    if (project.order?.quantity) {
+                        const parsedQty = parseInt(project.order.quantity, 10);
+                        if (!isNaN(parsedQty) && parsedQty > 0) {
+                            quantity = parsedQty;
+                        }
+                    } else if (project.quantity) {
+                        const parsedQty = parseInt(project.quantity, 10);
+                        if (!isNaN(parsedQty) && parsedQty > 0) {
+                            quantity = parsedQty;
+                        }
                     }
                 }
 
@@ -89,16 +114,17 @@ router.post('/', async (req, res) => {
                     orderIdWithSuffix = `${orderIdWithSuffix} MAGAZINE`;
                 }
 
-                // Order value calculation (based on pages PDF only, cover excluded)
+                // Order value calculation (based on pages PDF only, cover excluded) * quantity
                 const safePageCount = typeof pageCount === 'number' ? pageCount : 0;
-                let orderValue;
+                let unitPrice;
                 if (isMagazine) {
-                    orderValue = 20 + (safePageCount * 10);
+                    unitPrice = 20 + (safePageCount * 10);
                 } else if (safePageCount === 24) {
-                    orderValue = 450; // Normal book, 24 pages (excluding cover)
+                    unitPrice = 450; // Normal book, 24 pages (excluding cover)
                 } else {
-                    orderValue = 350 + (safePageCount * 6);
+                    unitPrice = 350 + (safePageCount * 6);
                 }
+                const orderValue = unitPrice * quantity;
 
                 // Append order value to CSV and get running total
                 await moneyService.appendOrderValue(orderIdWithSuffix, orderValue);
@@ -109,6 +135,7 @@ router.post('/', async (req, res) => {
                 
                 if (i === 0 && qrImagePath) {
                     await notifyService.sendOrderWithQRAttachment(qrImagePath, pdfPath, orderIdWithSuffix, {
+                        quantity,
                         pageCount,
                         orderValue,
                         total
@@ -118,6 +145,7 @@ router.post('/', async (req, res) => {
                     logger.info(`QR image sent as attachment and deleted for order ${orderNumber}`);
                 } else {
                     await notifyService.sendPDF(pdfPath, orderIdWithSuffix, {
+                        quantity,
                         pageCount,
                         orderValue,
                         total

@@ -55,19 +55,7 @@ async function sendPDF(pdfPath, orderId, details = {}) {
     try {
         logger.info(`Sending PDF download link to WhatsApp for order: ${orderId}`);
 
-        const filename = path.basename(pdfPath);
-        const downloadUrl = `${config.baseUrl}/download/${encodeURIComponent(filename)}`;
-
-        const pageCountText =
-            typeof details.pageCount === 'number' ? `${details.pageCount}` : 'N/A';
-        const orderValueText =
-            typeof details.orderValue === 'number' ? `${details.orderValue}` : 'N/A';
-        const totalText =
-            typeof details.total === 'number'
-                ? `${details.total}`
-                : orderValueText !== 'N/A'
-                    ? orderValueText
-                    : 'N/A';
+        const messageBody = buildOrderMessageBody(pdfPath, orderId, details);
 
         // Send text message with download link
         const messagePayload = {
@@ -76,7 +64,7 @@ async function sendPDF(pdfPath, orderId, details = {}) {
             to: config.whatsapp.recipientNumber,
             type: 'text',
             text: {
-                body: `Order ${orderId}\nPage Count: ${pageCountText}\nOrder Value: ${orderValueText} EGP\nTotal Money: ${totalText} EGP\n\nDownload PDF:\n${downloadUrl}`
+                body: messageBody
             }
         };
 
@@ -100,15 +88,16 @@ async function sendPDF(pdfPath, orderId, details = {}) {
 }
 
 /**
- * Builds the order details message body (Order, Page Count, Value, Total, Download link).
+ * Builds the order details message body (Order, Quantity, Page Count, Value, Total, Download link).
  * @param {string} mainPdfPath - Path to the main merged PDF (for download URL)
  * @param {string} orderId - Order ID for display
- * @param {{pageCount?: number|null, orderValue?: number|null, total?: number|null}=} details
+ * @param {{quantity?: number|null, pageCount?: number|null, orderValue?: number|null, total?: number|null}=} details
  * @returns {string}
  */
 function buildOrderMessageBody(mainPdfPath, orderId, details = {}) {
     const filename = path.basename(mainPdfPath);
     const downloadUrl = `${config.baseUrl}/download/${encodeURIComponent(filename)}`;
+    const quantityText = typeof details.quantity === 'number' ? `${details.quantity}` : '1';
     const pageCountText = typeof details.pageCount === 'number' ? `${details.pageCount}` : 'N/A';
     const orderValueText = typeof details.orderValue === 'number' ? `${details.orderValue}` : 'N/A';
     const totalText =
@@ -117,7 +106,7 @@ function buildOrderMessageBody(mainPdfPath, orderId, details = {}) {
             : orderValueText !== 'N/A'
                 ? orderValueText
                 : 'N/A';
-    return `Order ${orderId}\nPage Count: ${pageCountText}\nOrder Value: ${orderValueText} EGP\nTotal Money: ${totalText} EGP\n\nDownload PDF:\n${downloadUrl}`;
+    return `Order ${orderId}\nQuantity: ${quantityText}\nPage Count: ${pageCountText}\nOrder Value: ${orderValueText} EGP\nTotal Money: ${totalText} EGP\n\nDownload PDF:\n${downloadUrl}`;
 }
 
 /**

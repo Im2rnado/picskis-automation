@@ -13,11 +13,12 @@ function getTelegramBaseUrl() {
 }
 
 /**
- * Builds the order details message body (Order, Page Count, Value, Total, Download link).
+ * Builds the order details message body (Order, Quantity, Page Count, Value, Total, Download link).
  */
 function buildOrderMessageBody(mainPdfPath, orderId, details = {}) {
     const filename = path.basename(mainPdfPath);
     const downloadUrl = `${config.baseUrl}/download/${encodeURIComponent(filename)}`;
+    const quantityText = typeof details.quantity === 'number' ? `${details.quantity}` : '1';
     const pageCountText = typeof details.pageCount === 'number' ? `${details.pageCount}` : 'N/A';
     const orderValueText = typeof details.orderValue === 'number' ? `${details.orderValue}` : 'N/A';
     const totalText =
@@ -26,7 +27,7 @@ function buildOrderMessageBody(mainPdfPath, orderId, details = {}) {
             : orderValueText !== 'N/A'
                 ? orderValueText
                 : 'N/A';
-    return `Order ${orderId}\nPage Count: ${pageCountText}\nOrder Value: ${orderValueText} EGP\nTotal Money: ${totalText} EGP\n\nDownload PDF:\n${downloadUrl}`;
+    return `Order ${orderId}\nQuantity: ${quantityText}\nPage Count: ${pageCountText}\nOrder Value: ${orderValueText} EGP\nTotal Money: ${totalText} EGP\n\nDownload PDF:\n${downloadUrl}`;
 }
 
 /**
